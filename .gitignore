@@ -1,0 +1,15 @@
+# IntelliJ
+.idea/
+*.iml
+
+# Maven
+target/
+**/target/
+
+# Variables de entorno
+.env
+.env.*
+
+# Archivos locales
+*.log
+.DS_Store
