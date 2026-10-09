@@ -115,11 +115,9 @@ Library GET responses combine the saved entry (including status and personal rat
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/GameHub.git
+git clone https://github.com/MateoSpinacci/GameHub.git
 cd GameHub
 ```
-
-Replace `YOUR_USERNAME` with your GitHub username.
 
 ### 2. Configure the RAWG API key
 
