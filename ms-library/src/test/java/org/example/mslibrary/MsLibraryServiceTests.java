@@ -1,8 +1,10 @@
 package org.example.mslibrary;
 
 import org.example.mslibrary.connector.MsGamesConnector;
+import org.example.mslibrary.dto.GetResponse;
 import org.example.mslibrary.dto.LibraryEntryDTO;
 import org.example.mslibrary.dto.LibraryResponse;
+import org.example.mslibrary.dto.RAWGResponse;
 import org.example.mslibrary.model.GameStatus;
 import org.example.mslibrary.model.LibraryEntry;
 import org.example.mslibrary.repository.LibraryRepository;
@@ -16,6 +18,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -105,5 +109,77 @@ public class MsLibraryServiceTests {
         assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
         verify(repository, never()).save(any(LibraryEntry.class));
         verify(connector).existeJuegoPorId(225012939);
+    }
+
+    @Test
+    void getGameByIdCorrectly() {
+        LibraryEntry entry = new LibraryEntry();
+        entry.setId(1L);
+        entry.setGameId(22509);
+        entry.setStatus(GameStatus.PLAYING);
+        entry.setPersonalRating(10);
+        entry.setAddedAt(LocalDate.now());
+
+        RAWGResponse rawgResponse = new RAWGResponse();
+        rawgResponse.setId(22509);
+        rawgResponse.setName("Minecraft");
+        rawgResponse.setReleased("2009-05-10");
+        rawgResponse.setRating(4.44);
+        rawgResponse.setMetacritic(83);
+        rawgResponse.setBackgroundImage("https://media.rawg.io/media/games/b4e/b4e4c73d5aa4ec66bbf75375c4847a2b.jpg");
+
+        GetResponse response = new GetResponse(
+                1L,
+                22509,
+                "Minecraft",
+                "https://media.rawg.io/media/games/b4e/b4e4c73d5aa4ec66bbf75375c4847a2b.jpg",
+                GameStatus.PLAYING,
+                10,
+                LocalDate.now()
+        );
+
+        when(repository.findById(1L)).thenReturn(Optional.of(entry));
+        when(connector.getJuegoPorId(entry.getGameId())).thenReturn(rawgResponse);
+
+        GetResponse getResponse = service.getGame(1L);
+
+        assertAll(
+                () -> assertEquals(response.getId(), getResponse.getId()),
+                () -> assertEquals(response.getGameId(), getResponse.getGameId()),
+                () -> assertEquals(response.getName(), getResponse.getName()),
+                () -> assertEquals(response.getBackgroundImage(), getResponse.getBackgroundImage()),
+                () -> assertEquals(response.getStatus(), getResponse.getStatus()),
+                () -> assertEquals(response.getPersonalRating(), getResponse.getPersonalRating()),
+                () -> assertEquals(response.getAddedAt(), getResponse.getAddedAt())
+        );
+    }
+
+    @Test
+    void getGameByNonExistentId() {
+        when(repository.findById(1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.getGame(1L));
+        assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
+        verifyNoInteractions(connector);
+    }
+
+
+    @Test
+    void DeleteGameCorrectly() {
+        when(repository.existsById(1L)).thenReturn(true);
+
+        service.deleteGame(1L);
+
+        verify(repository).deleteById(1L);
+    }
+
+    @Test
+    void DeleteNonExistentGame() {
+
+        when(repository.existsById(1L)).thenReturn(false);
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.deleteGame(1L));
+        assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
+        verify(repository, never()).deleteById(1L);
     }
 }
