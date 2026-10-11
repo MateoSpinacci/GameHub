@@ -70,6 +70,12 @@ public class LibraryService {
     }
 
     public LibraryResponse updateGame(Long id, PatchEntryDTO dto) {
+        if (dto.getPersonalRating() == null && dto.getStatus() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Debe proporcionar al menos un campo para actualizar"
+            );
+        }
         LibraryEntry juego = repository.findById(id)
                 .orElseThrow(
                         () -> new ResponseStatusException(
