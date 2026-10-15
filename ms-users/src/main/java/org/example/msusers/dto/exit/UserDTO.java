@@ -14,13 +14,13 @@ import org.example.msusers.model.User;
 public class UserDTO {
     Long id;
     String username;
-    String mail;
+    String email;
 
     public static UserDTO of(User user) {
         return new UserDTO(
                 user.getId(),
                 user.getUsername(),
-                user.getMail()
+                user.getEmail()
         );
     }
 }

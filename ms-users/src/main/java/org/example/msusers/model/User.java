@@ -1,13 +1,12 @@
 package org.example.msusers.model;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.example.msusers.dto.entry.EntryUserDTO;
+import org.example.msusers.dto.entry.CreateUserDTO;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -22,19 +21,19 @@ public class User {
     @Column(unique = true)
     String username;
     @Column(unique = true)
-    String mail;
+    String email;
     String passwordHash;
 
-    public User(String username, String mail, String passwordHash) {
+    public User(String username, String email, String passwordHash) {
         this.username = username;
-        this.mail = mail;
+        this.email = email;
         this.passwordHash = passwordHash;
     }
 
-    public static User of(EntryUserDTO dto, String passwordHash) {
+    public static User of(CreateUserDTO dto, String passwordHash) {
         return new User(
                 dto.getUsername(),
-                dto.getMail(),
+                dto.getEmail(),
                 passwordHash
         );
     }

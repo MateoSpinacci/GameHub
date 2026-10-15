@@ -12,12 +12,12 @@ import org.jspecify.annotations.NonNull;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
-public class EntryUserDTO {
+public class CreateUserDTO {
     @NonNull
     String username;
     @NonNull
     @Email
-    String mail;
+    String email;
     @NonNull
     String password;
 }
