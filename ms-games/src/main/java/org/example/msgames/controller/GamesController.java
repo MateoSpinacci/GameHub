@@ -7,7 +7,6 @@ import lombok.val;
 import org.example.msgames.dto.GamesDTO;
 import org.example.msgames.service.GamesService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;

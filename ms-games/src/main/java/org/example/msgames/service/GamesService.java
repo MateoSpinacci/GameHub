@@ -6,8 +6,11 @@ import lombok.experimental.FieldDefaults;
 import org.example.msgames.controller.GamesController;
 import org.example.msgames.dto.GamesDTO;
 import org.example.msgames.interfaces.GamesConnector;
+import org.example.msgames.model.Games;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -26,6 +29,13 @@ public class GamesService {
     }
 
     public GamesDTO juegoPorId(Integer id) {
-        return GamesDTO.of(gamesConnector.juegoPorId(id));
+        Games game = gamesConnector.juegoPorId(id);
+        if (game == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "No existe un juego con ese ID"
+            );
+        }
+        return GamesDTO.of(game);
     }
 }

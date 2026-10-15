@@ -1,5 +1,6 @@
 package org.example.msusers.controller;
 
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -23,7 +24,7 @@ public class UserController {
     UserService service;
 
     @PostMapping
-    public ResponseEntity<UserDTO> createUser(@RequestBody CreateUserDTO userDTO) {
+    public ResponseEntity<UserDTO> createUser(@RequestBody @Valid CreateUserDTO userDTO) {
         val response = service.createUser(userDTO);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -43,14 +44,14 @@ public class UserController {
     }
 
     @PatchMapping("/{id}")
-    public ResponseEntity<UserDTO> updateUser(@PathVariable Long id, @RequestBody PatchUserDTO patchUserDTO) {
+    public ResponseEntity<UserDTO> updateUser(@PathVariable Long id, @RequestBody @Valid PatchUserDTO patchUserDTO) {
         val user = service.updateUser(id, patchUserDTO);
 
         return ResponseEntity.ok(user);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<UserDTO> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         service.deleteUser(id);
 
         return ResponseEntity.noContent().build();

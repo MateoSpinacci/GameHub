@@ -7,6 +7,7 @@ import org.example.mslibrary.dto.RAWGResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
@@ -33,7 +34,13 @@ public class MsGamesConnector {
                     "No se pudo establecer comunicación con ms-games",
                     e
             );
-        }
+        } catch (HttpServerErrorException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "ms-games respondió con un error",
+                    e
+            );
+    }
     }
 
     public RAWGResponse getJuegoPorId(Integer id) {
@@ -52,6 +59,12 @@ public class MsGamesConnector {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "No se pudo establecer comunicación con ms-games",
+                    e
+            );
+        } catch (HttpServerErrorException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "ms-games respondió con un error",
                     e
             );
         }

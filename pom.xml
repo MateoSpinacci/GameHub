@@ -14,7 +14,8 @@
     <modules>
         <module>ms-games</module>
         <module>ms-library</module>
-        <module>gateway</module>
+        <module>ms-users</module>
+        <module>Gateway</module>
     </modules>
 
 </project>
