@@ -11,6 +11,7 @@ import org.example.mslibrary.model.LibraryEntry;
 import org.example.mslibrary.connector.MsGamesConnector;
 import org.example.mslibrary.repository.LibraryRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -23,15 +24,15 @@ public class LibraryService {
     LibraryRepository repository;
     MsGamesConnector connector;
 
-    public LibraryResponse addGame(LibraryEntryDTO dto) {
-        if (repository.existsByGameId(dto.getGameId())) {
+    public LibraryResponse addGame(LibraryEntryDTO dto, Jwt jwt) {
+        if (repository.existsByUserIdAndGameId(jwt.getSubject(), dto.getGameId())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "El juego ya existe en la base de datos"
             );
         }
         if (connector.existeJuegoPorId(dto.getGameId())) {
-            LibraryEntry entry = LibraryEntry.of(dto);
+            LibraryEntry entry = LibraryEntry.of(dto, jwt);
             LibraryEntry guardado = repository.save(entry);
             return LibraryResponse.of(guardado);
         } else {
@@ -42,15 +43,15 @@ public class LibraryService {
         }
     }
 
-    public List<GetResponse> getAllGames() {
-        return repository.findAll()
+    public List<GetResponse> getAllGames(Jwt jwt) {
+        return repository.findByUserId(jwt.getSubject())
                 .stream()
                 .map(r -> GetResponse.of(r, connector.getJuegoPorId(r.getGameId())))
                 .toList();
     }
 
-    public GetResponse getGame(Long id) {
-        LibraryEntry entry = repository.findById(id)
+    public GetResponse getGame(Long id, Jwt jwt) {
+        LibraryEntry entry = repository.findByIdAndUserId(id, jwt.getSubject())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "No existe un juego con ese ID en tu biblioteca"
@@ -59,24 +60,23 @@ public class LibraryService {
         return GetResponse.of(entry, connector.getJuegoPorId(entry.getGameId()));
     }
 
-    public void deleteGame(Long id) {
-        if (!repository.existsById(id)) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "No existe un juego con ese ID en tu biblioteca"
-            );
-        }
-        repository.deleteById(id);
+    public void deleteGame(Long id, Jwt jwt) {
+        LibraryEntry entry = repository.findByIdAndUserId(id, jwt.getSubject())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "No existe un juego con ese ID en tu biblioteca"
+                ));
+        repository.delete(entry);
     }
 
-    public LibraryResponse updateGame(Long id, PatchEntryDTO dto) {
+    public LibraryResponse updateGame(Long id, PatchEntryDTO dto, Jwt jwt) {
         if (dto.getPersonalRating() == null && dto.getStatus() == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Debe proporcionar al menos un campo para actualizar"
             );
         }
-        LibraryEntry juego = repository.findById(id)
+        LibraryEntry juego = repository.findByIdAndUserId(id, jwt.getSubject())
                 .orElseThrow(
                         () -> new ResponseStatusException(
                                 HttpStatus.NOT_FOUND,

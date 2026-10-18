@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.example.mslibrary.dto.LibraryEntryDTO;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.LocalDate;
 
@@ -15,18 +16,22 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "game_id"}))
 public class LibraryEntry {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
-    @Column(unique = true)
+    @Column(name = "user_id", nullable = false)
+    String userId;
+    @Column(name = "game_id")
     Integer gameId;
     @Enumerated(EnumType.STRING)
     GameStatus status;
     Integer personalRating;
     LocalDate addedAt;
 
-    private LibraryEntry(Integer gameId, GameStatus status, Integer personalRating, LocalDate now) {
+    private LibraryEntry(String jwt, Integer gameId, GameStatus status, Integer personalRating, LocalDate now) {
+        this.userId = jwt;
         this.gameId = gameId;
         this.status = status;
         this.personalRating = personalRating;
@@ -34,8 +39,9 @@ public class LibraryEntry {
     }
 
 
-    public static LibraryEntry of(LibraryEntryDTO dto) {
+    public static LibraryEntry of(LibraryEntryDTO dto, Jwt jwt) {
         return new LibraryEntry(
+                    jwt.getSubject(),
                     dto.getGameId(),
                     dto.getStatus(),
                     dto.getPersonalRating(),
