@@ -8,10 +8,12 @@ import org.example.mslibrary.repository.LibraryRepository;
 import org.example.mslibrary.service.LibraryService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
@@ -56,7 +58,21 @@ public class MsLibraryServiceTests {
                 () -> assertEquals(expected.getPersonalRating(), actual.getPersonalRating())
         );
     }
-/*
+
+    private Jwt createJwt() {
+        return Jwt.withTokenValue("token-de-prueba")
+                .header("alg", "none")
+                .subject("usuario-123")
+                .build();
+    }
+
+    private Jwt createJwt2() {
+        return Jwt.withTokenValue("token-de-prueba2")
+                .header("alg2", "none")
+                .subject("usuario-456")
+                .build();
+    }
+
     @Test
     void addGameCorrectly() {
 
@@ -76,14 +92,13 @@ public class MsLibraryServiceTests {
                 LocalDate.of(2020,1, 1)
         );
 
-        when(repository.existsByGameId(22509)).thenReturn(false);
+        Jwt jwt = createJwt();
+
+        when(repository.existsByUserIdAndGameId(jwt.getSubject(), 22509)).thenReturn(false);
         when(connector.existeJuegoPorId(22509)).thenReturn(true);
         when(repository.save(any(LibraryEntry.class))).thenReturn(entry);
 
-        LibraryResponse resultado = service.addGame(dto);
-
-        verify(repository, times(1)).save(any(LibraryEntry.class));
-        verify(connector).existeJuegoPorId(22509);
+        LibraryResponse resultado = service.addGame(dto, jwt);
 
         assertAll(
                 () -> assertEquals(response.getId(), resultado.getId()),
@@ -92,19 +107,26 @@ public class MsLibraryServiceTests {
                 () -> assertEquals(response.getPersonalRating(), resultado.getPersonalRating()),
                 () -> assertEquals(response.getAddedAt(), resultado.getAddedAt())
         );
+        ArgumentCaptor<LibraryEntry> captor =
+                ArgumentCaptor.forClass(LibraryEntry.class);
+        verify(repository).save(captor.capture());
+        LibraryEntry savedEntry = captor.getValue();
+        assertEquals("usuario-123", savedEntry.getUserId());
+        verify(connector).existeJuegoPorId(22509);
     }
 
     @Test
     void getAllGamesCorrectly() {
+        Jwt jwt = createJwt();
         List<LibraryEntry> entries = new ArrayList<>();
         entries.add(createLibraryEntry());
-        entries.add(new LibraryEntry(
-                2L,
-                3498,
-                GameStatus.WANT_TO_PLAY,
-                9,
-                LocalDate.of(2025, 12, 15)
-        ));
+        LibraryEntry entry = new LibraryEntry();
+        entry.setId(2L);
+        entry.setGameId(3498);
+        entry.setStatus(GameStatus.WANT_TO_PLAY);
+        entry.setPersonalRating(9);
+        entry.setAddedAt(LocalDate.of(2025, 12, 15));
+        entries.add(entry);
 
         RAWGResponse responseMinecraft = new RAWGResponse(
                 22509,
@@ -144,18 +166,18 @@ public class MsLibraryServiceTests {
                 LocalDate.of(2025, 12, 15)
         ));
 
-        when(repository.findAll()).thenReturn(entries);
+        when(repository.findByUserId("usuario-123")).thenReturn(entries);
         when(connector.getJuegoPorId(22509)).thenReturn(responseMinecraft);
         when(connector.getJuegoPorId(3498)).thenReturn(responseGta);
 
-        List<GetResponse> results = service.getAllGames();
+        List<GetResponse> results = service.getAllGames(jwt);
 
         assertEquals(2, results.size());
         assertAll(
                 () -> assertGameEquals(responses.get(0), results.get(0)),
                 () -> assertGameEquals(responses.get(1), results.get(1))
         );
-        verify(repository).findAll();
+        verify(repository).findByUserId("usuario-123");
         verify(connector).getJuegoPorId(22509);
         verify(connector).getJuegoPorId(3498);
         verifyNoMoreInteractions(connector);
@@ -163,26 +185,28 @@ public class MsLibraryServiceTests {
 
     @Test
     void getEmptyLibrary() {
-        when(repository.findAll()).thenReturn(List.of());
+        Jwt  jwt = createJwt();
+        when(repository.findByUserId("usuario-123")).thenReturn(List.of());
 
-        List<GetResponse> result = service.getAllGames();
+        List<GetResponse> result = service.getAllGames(jwt);
 
         assertTrue(result.isEmpty());
-        verify(repository).findAll();
+        verify(repository).findByUserId("usuario-123");
         verifyNoInteractions(connector);
     }
 
     @Test
     void addDuplicatedGame() {
+        Jwt  jwt = createJwt();
         LibraryEntryDTO dto = new LibraryEntryDTO(
                 22509,
                 GameStatus.PLAYING,
                 10
         );
 
-        when(repository.existsByGameId(22509)).thenReturn(true);
+        when(repository.existsByUserIdAndGameId(jwt.getSubject(), 22509)).thenReturn(true);
 
-        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.addGame(dto));
+        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.addGame(dto, jwt));
         assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
         verify(repository, never()).save(any(LibraryEntry.class));
         verify(connector, never()).existeJuegoPorId(anyInt());
@@ -190,16 +214,17 @@ public class MsLibraryServiceTests {
 
     @Test
     void addNonExistentGame() {
+        Jwt  jwt = createJwt();
         LibraryEntryDTO dto = new LibraryEntryDTO(
                 225012939,
                 GameStatus.PLAYING,
                 10
         );
 
-        when(repository.existsByGameId(225012939)).thenReturn(false);
+        when(repository.existsByUserIdAndGameId(jwt.getSubject(), 225012939)).thenReturn(false);
         when(connector.existeJuegoPorId(225012939)).thenReturn(false);
 
-        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.addGame(dto));
+        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.addGame(dto, jwt));
         assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
         verify(repository, never()).save(any(LibraryEntry.class));
         verify(connector).existeJuegoPorId(225012939);
@@ -207,6 +232,7 @@ public class MsLibraryServiceTests {
 
     @Test
     void getGameByIdCorrectly() {
+        Jwt  jwt = createJwt();
         LibraryEntry entry = createLibraryEntry();
 
         RAWGResponse rawgResponse = new RAWGResponse();
@@ -227,10 +253,10 @@ public class MsLibraryServiceTests {
                 LocalDate.of(2020, 1, 1)
         );
 
-        when(repository.findById(1L)).thenReturn(Optional.of(entry));
+        when(repository.findByIdAndUserId(1L, "usuario-123")).thenReturn(Optional.of(entry));
         when(connector.getJuegoPorId(entry.getGameId())).thenReturn(rawgResponse);
 
-        GetResponse getResponse = service.getGame(1L);
+        GetResponse getResponse = service.getGame(1L, jwt);
 
         assertAll(
                 () -> assertEquals(response.getId(), getResponse.getId()),
@@ -245,9 +271,10 @@ public class MsLibraryServiceTests {
 
     @Test
     void getGameByNonExistentId() {
-        when(repository.findById(1L)).thenReturn(Optional.empty());
+        Jwt  jwt = createJwt();
+        when(repository.findByIdAndUserId(1L, "usuario-123")).thenReturn(Optional.empty());
 
-        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.getGame(1L));
+        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.getGame(1L, jwt));
         assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
         verifyNoInteractions(connector);
     }
@@ -255,25 +282,29 @@ public class MsLibraryServiceTests {
 
     @Test
     void DeleteGameCorrectly() {
-        when(repository.existsById(1L)).thenReturn(true);
+        Jwt  jwt = createJwt();
+        LibraryEntry entry = createLibraryEntry();
+        when(repository.findByIdAndUserId(1L, "usuario-123")).thenReturn(Optional.of(entry));
 
-        service.deleteGame(1L);
+        service.deleteGame(1L, jwt);
 
-        verify(repository).deleteById(1L);
+        verify(repository).delete(entry);
     }
 
     @Test
     void DeleteNonExistentGame() {
+        Jwt  jwt = createJwt();
 
-        when(repository.existsById(1L)).thenReturn(false);
+        when(repository.findByIdAndUserId(1L, "usuario-123")).thenReturn(Optional.empty());
 
-        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.deleteGame(1L));
+        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.deleteGame(1L, jwt));
         assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
-        verify(repository, never()).deleteById(1L);
+        verify(repository, never()).delete(any(LibraryEntry.class));
     }
 
     @Test
     void updateGameCorrectly() {
+        Jwt  jwt = createJwt();
         LibraryEntry entry = createLibraryEntry();
 
         PatchEntryDTO dto = new PatchEntryDTO(
@@ -289,10 +320,10 @@ public class MsLibraryServiceTests {
                 LocalDate.of(2020, 1, 1)
         );
 
-        when(repository.findById(1L)).thenReturn(Optional.of(entry));
+        when(repository.findByIdAndUserId(1L, "usuario-123")).thenReturn(Optional.of(entry));
         when(repository.save(any(LibraryEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        LibraryResponse resultado = service.updateGame(1L, dto);
+        LibraryResponse resultado = service.updateGame(1L, dto, jwt);
 
         verify(repository).save(any(LibraryEntry.class));
         assertAll(
@@ -306,6 +337,7 @@ public class MsLibraryServiceTests {
 
     @Test
     void updateOnlyStatusCorrectly() {
+        Jwt  jwt = createJwt();
         LibraryEntry entry = createLibraryEntry();
 
         PatchEntryDTO dto = new PatchEntryDTO(
@@ -321,10 +353,10 @@ public class MsLibraryServiceTests {
                 LocalDate.of(2020, 1, 1)
         );
 
-        when(repository.findById(1L)).thenReturn(Optional.of(entry));
+        when(repository.findByIdAndUserId(1L, "usuario-123")).thenReturn(Optional.of(entry));
         when(repository.save(any(LibraryEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        LibraryResponse resultado = service.updateGame(1L, dto);
+        LibraryResponse resultado = service.updateGame(1L, dto, jwt);
 
         verify(repository).save(any(LibraryEntry.class));
         assertAll(
@@ -338,6 +370,7 @@ public class MsLibraryServiceTests {
 
     @Test
     void updateOnlyRatingCorrectly() {
+        Jwt  jwt = createJwt();
         LibraryEntry entry = createLibraryEntry();
 
         PatchEntryDTO dto = new PatchEntryDTO(
@@ -353,12 +386,11 @@ public class MsLibraryServiceTests {
                 LocalDate.of(2020, 1, 1)
         );
 
-        when(repository.findById(1L)).thenReturn(Optional.of(entry));
+        when(repository.findByIdAndUserId(1L, "usuario-123")).thenReturn(Optional.of(entry));
         when(repository.save(any(LibraryEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        LibraryResponse resultado = service.updateGame(1L, dto);
+        LibraryResponse resultado = service.updateGame(1L, dto, jwt);
 
-        verify(repository).save(any(LibraryEntry.class));
         assertAll(
                 () -> assertEquals(response.getId(), resultado.getId()),
                 () -> assertEquals(response.getGameId(), resultado.getGameId()),
@@ -366,33 +398,70 @@ public class MsLibraryServiceTests {
                 () -> assertEquals(response.getPersonalRating(), resultado.getPersonalRating()),
                 () -> assertEquals(response.getAddedAt(), resultado.getAddedAt())
         );
+        verify(repository).save(any(LibraryEntry.class));
+        verify(repository).findByIdAndUserId(1L, "usuario-123");
     }
 
     @Test
     void tryToUpdateWithBothNullArguments() {
+        Jwt  jwt = createJwt();
         PatchEntryDTO dto = new PatchEntryDTO(
                 null,
                 null
         );
 
-        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.updateGame(1L, dto));
+        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.updateGame(1L, dto, jwt));
         assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
         verifyNoInteractions(repository);
     }
 
     @Test
     void updateNonExistentGame() {
+        Jwt  jwt = createJwt();
         PatchEntryDTO dto = new PatchEntryDTO(
                 GameStatus.DROPPED,
                 6
         );
 
-        when(repository.findById(1L)).thenReturn(Optional.empty());
+        when(repository.findByIdAndUserId(1L, "usuario-123")).thenReturn(Optional.empty());
 
-        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.updateGame(1L, dto));
+        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.updateGame(1L, dto, jwt));
         assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
         verify(repository, never()).save(any(LibraryEntry.class));
-        verify(repository).findById(1L);
+        verify(repository).findByIdAndUserId(1L, "usuario-123");
     }
-    */
+
+    @Test
+    public void differentUsersCanAddSameGame() {
+        LibraryEntry entry1 = createLibraryEntry();
+        LibraryEntry entry2 = createLibraryEntry();
+        entry2.setId(2L);
+
+        LibraryEntryDTO dto = new LibraryEntryDTO(
+                22509,
+                GameStatus.PLAYING,
+                10
+        );
+
+        Jwt jwt1 = createJwt();
+        Jwt jwt2 = createJwt2();
+
+        when(repository.existsByUserIdAndGameId(jwt1.getSubject(), 22509)).thenReturn(false);
+        when(repository.existsByUserIdAndGameId(jwt2.getSubject(), 22509)).thenReturn(false);
+        when(connector.existeJuegoPorId(22509)).thenReturn(true);
+        when(repository.save(any(LibraryEntry.class))).thenReturn(entry1, entry2);
+
+        service.addGame(dto, jwt1);
+        service.addGame(dto, jwt2);
+
+        ArgumentCaptor<LibraryEntry> captor = ArgumentCaptor.forClass(LibraryEntry.class);
+        List<LibraryEntry> savedEntries = captor.getAllValues();
+
+        assertEquals("usuario-123", savedEntries.get(0).getUserId());
+        assertEquals("usuario-456", savedEntries.get(1).getUserId());
+        verify(repository, times(2)).save(captor.capture());
+        verify(connector, times(2)).existeJuegoPorId(22509);
+        verify(repository).existsByUserIdAndGameId("usuario-123", 22509);
+        verify(repository).existsByUserIdAndGameId("usuario-456", 22509);
+    }
 }

@@ -30,7 +30,7 @@ public class LibraryEntry {
     Integer personalRating;
     LocalDate addedAt;
 
-    private LibraryEntry(String jwt, Integer gameId, GameStatus status, Integer personalRating, LocalDate now) {
+    public LibraryEntry(String jwt, Integer gameId, GameStatus status, Integer personalRating, LocalDate now) {
         this.userId = jwt;
         this.gameId = gameId;
         this.status = status;
