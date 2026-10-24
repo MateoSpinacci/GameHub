@@ -455,11 +455,13 @@ public class MsLibraryServiceTests {
         service.addGame(dto, jwt2);
 
         ArgumentCaptor<LibraryEntry> captor = ArgumentCaptor.forClass(LibraryEntry.class);
+
+        verify(repository, times(2)).save(captor.capture());
+
         List<LibraryEntry> savedEntries = captor.getAllValues();
 
         assertEquals("usuario-123", savedEntries.get(0).getUserId());
         assertEquals("usuario-456", savedEntries.get(1).getUserId());
-        verify(repository, times(2)).save(captor.capture());
         verify(connector, times(2)).existeJuegoPorId(22509);
         verify(repository).existsByUserIdAndGameId("usuario-123", 22509);
         verify(repository).existsByUserIdAndGameId("usuario-456", 22509);

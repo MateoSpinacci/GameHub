@@ -30,12 +30,12 @@ public class LibraryEntry {
     Integer personalRating;
     LocalDate addedAt;
 
-    public LibraryEntry(String jwt, Integer gameId, GameStatus status, Integer personalRating, LocalDate now) {
+    public LibraryEntry(String jwt, Integer gameId, GameStatus status, Integer personalRating) {
         this.userId = jwt;
         this.gameId = gameId;
         this.status = status;
         this.personalRating = personalRating;
-        this.addedAt = now;
+        this.addedAt = LocalDate.of(2020, 1, 1);
     }
 
 
@@ -44,8 +44,7 @@ public class LibraryEntry {
                     jwt.getSubject(),
                     dto.getGameId(),
                     dto.getStatus(),
-                    dto.getPersonalRating(),
-                    LocalDate.now()
+                    dto.getPersonalRating()
         );
     }
 }
