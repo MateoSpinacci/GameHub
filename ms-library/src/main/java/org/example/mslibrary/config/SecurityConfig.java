@@ -33,7 +33,6 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/h2-console/**").permitAll()
-                        .requestMatchers(HttpMethod.DELETE, "/api/library/**").hasRole("ADMIN")
                         .requestMatchers("/api/library/**").hasAnyRole("USER", "ADMIN")
                         .anyRequest().authenticated())
                 .headers(headers -> headers

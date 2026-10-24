@@ -35,7 +35,7 @@ public class LibraryEntry {
         this.gameId = gameId;
         this.status = status;
         this.personalRating = personalRating;
-        this.addedAt = LocalDate.of(2020, 1, 1);
+        this.addedAt = LocalDate.now();
     }
 
 

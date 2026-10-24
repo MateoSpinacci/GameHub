@@ -62,21 +62,11 @@ public class MsLibraryControllerTests {
     }
 
     @Test
-    void shouldRejectDeleteForUserRole() throws Exception {
-        mockMvc.perform(delete("/api/library/1")
-                .with(jwt()
-                .authorities(new SimpleGrantedAuthority("ROLE_USER")))
-        ).andExpect(status().isForbidden());
-
-        verifyNoInteractions(service);
-    }
-
-    @Test
-    void shouldAllowDeleteForAdminRole() throws Exception {
+    void shouldAllowAuthenticatedUserToDeleteGame() throws Exception {
         mockMvc.perform(delete("/api/library/1")
                 .with(jwt()
                         .jwt(token -> token.subject("usuario-123"))
-                        .authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
+                        .authorities(new SimpleGrantedAuthority("ROLE_USER")))
         ).andExpect(status().isNoContent());
 
         ArgumentCaptor<Jwt> jwtCaptor = ArgumentCaptor.forClass(Jwt.class);

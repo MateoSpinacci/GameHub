@@ -28,19 +28,18 @@ public class LibraryService {
         if (repository.existsByUserIdAndGameId(jwt.getSubject(), dto.getGameId())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "El juego ya existe en la base de datos"
+                    "Game already exists in your library"
             );
         }
-        if (connector.existsById(dto.getGameId())) {
-            LibraryEntry entry = LibraryEntry.of(dto, jwt);
-            LibraryEntry guardado = repository.save(entry);
-            return LibraryResponse.of(guardado);
-        } else {
+        if (!connector.existsById(dto.getGameId())) {
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
-                    "El juego no existe en RAWG"
+                    "Game not found in RAWG"
             );
         }
+        LibraryEntry entry = LibraryEntry.of(dto, jwt);
+        LibraryEntry savedEntry = repository.save(entry);
+        return LibraryResponse.of(savedEntry);
     }
 
     public List<GetResponse> getAllGames(Jwt jwt) {
@@ -54,7 +53,7 @@ public class LibraryService {
         LibraryEntry entry = repository.findByIdAndUserId(id, jwt.getSubject())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "No existe un juego con ese ID en tu biblioteca"
+                        "Game not found in your library"
                 ));
 
         return GetResponse.of(entry, connector.getGameById(entry.getGameId()));
@@ -64,7 +63,7 @@ public class LibraryService {
         LibraryEntry entry = repository.findByIdAndUserId(id, jwt.getSubject())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "No existe un juego con ese ID en tu biblioteca"
+                        "Game not found in your library"
                 ));
         repository.delete(entry);
     }
@@ -73,23 +72,23 @@ public class LibraryService {
         if (dto.getPersonalRating() == null && dto.getStatus() == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Debe proporcionar al menos un campo para actualizar"
+                    "At least one field must be provided for update"
             );
         }
-        LibraryEntry juego = repository.findByIdAndUserId(id, jwt.getSubject())
+        LibraryEntry entry = repository.findByIdAndUserId(id, jwt.getSubject())
                 .orElseThrow(
                         () -> new ResponseStatusException(
                                 HttpStatus.NOT_FOUND,
-                                "No existe un juego con ese ID en tu biblioteca"
+                                "Game not found in your library"
                         )
                 );
         if (dto.getPersonalRating() != null) {
-            juego.setPersonalRating(dto.getPersonalRating());
+            entry.setPersonalRating(dto.getPersonalRating());
         }
         if (dto.getStatus() != null) {
-            juego.setStatus(dto.getStatus());
+            entry.setStatus(dto.getStatus());
         }
-        LibraryEntry cambio = repository.save(juego);
-        return LibraryResponse.of(cambio);
+        LibraryEntry updatedEntry = repository.save(entry);
+        return LibraryResponse.of(updatedEntry);
     }
 }
