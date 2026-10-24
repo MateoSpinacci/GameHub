@@ -31,7 +31,7 @@ public class LibraryService {
                     "El juego ya existe en la base de datos"
             );
         }
-        if (connector.existeJuegoPorId(dto.getGameId())) {
+        if (connector.existsById(dto.getGameId())) {
             LibraryEntry entry = LibraryEntry.of(dto, jwt);
             LibraryEntry guardado = repository.save(entry);
             return LibraryResponse.of(guardado);
@@ -46,7 +46,7 @@ public class LibraryService {
     public List<GetResponse> getAllGames(Jwt jwt) {
         return repository.findByUserId(jwt.getSubject())
                 .stream()
-                .map(r -> GetResponse.of(r, connector.getJuegoPorId(r.getGameId())))
+                .map(r -> GetResponse.of(r, connector.getGameById(r.getGameId())))
                 .toList();
     }
 
@@ -57,7 +57,7 @@ public class LibraryService {
                         "No existe un juego con ese ID en tu biblioteca"
                 ));
 
-        return GetResponse.of(entry, connector.getJuegoPorId(entry.getGameId()));
+        return GetResponse.of(entry, connector.getGameById(entry.getGameId()));
     }
 
     public void deleteGame(Long id, Jwt jwt) {

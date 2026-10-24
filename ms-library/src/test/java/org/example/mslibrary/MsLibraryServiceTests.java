@@ -95,7 +95,7 @@ public class MsLibraryServiceTests {
         Jwt jwt = createJwt();
 
         when(repository.existsByUserIdAndGameId(jwt.getSubject(), 22509)).thenReturn(false);
-        when(connector.existeJuegoPorId(22509)).thenReturn(true);
+        when(connector.existsById(22509)).thenReturn(true);
         when(repository.save(any(LibraryEntry.class))).thenReturn(entry);
 
         LibraryResponse resultado = service.addGame(dto, jwt);
@@ -112,7 +112,7 @@ public class MsLibraryServiceTests {
         verify(repository).save(captor.capture());
         LibraryEntry savedEntry = captor.getValue();
         assertEquals("usuario-123", savedEntry.getUserId());
-        verify(connector).existeJuegoPorId(22509);
+        verify(connector).existsById(22509);
     }
 
     @Test
@@ -167,8 +167,8 @@ public class MsLibraryServiceTests {
         ));
 
         when(repository.findByUserId("usuario-123")).thenReturn(entries);
-        when(connector.getJuegoPorId(22509)).thenReturn(responseMinecraft);
-        when(connector.getJuegoPorId(3498)).thenReturn(responseGta);
+        when(connector.getGameById(22509)).thenReturn(responseMinecraft);
+        when(connector.getGameById(3498)).thenReturn(responseGta);
 
         List<GetResponse> results = service.getAllGames(jwt);
 
@@ -178,8 +178,8 @@ public class MsLibraryServiceTests {
                 () -> assertGameEquals(responses.get(1), results.get(1))
         );
         verify(repository).findByUserId("usuario-123");
-        verify(connector).getJuegoPorId(22509);
-        verify(connector).getJuegoPorId(3498);
+        verify(connector).getGameById(22509);
+        verify(connector).getGameById(3498);
         verifyNoMoreInteractions(connector);
     }
 
@@ -209,7 +209,7 @@ public class MsLibraryServiceTests {
         ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.addGame(dto, jwt));
         assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
         verify(repository, never()).save(any(LibraryEntry.class));
-        verify(connector, never()).existeJuegoPorId(anyInt());
+        verify(connector, never()).existsById(anyInt());
     }
 
     @Test
@@ -222,12 +222,12 @@ public class MsLibraryServiceTests {
         );
 
         when(repository.existsByUserIdAndGameId(jwt.getSubject(), 225012939)).thenReturn(false);
-        when(connector.existeJuegoPorId(225012939)).thenReturn(false);
+        when(connector.existsById(225012939)).thenReturn(false);
 
         ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.addGame(dto, jwt));
         assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
         verify(repository, never()).save(any(LibraryEntry.class));
-        verify(connector).existeJuegoPorId(225012939);
+        verify(connector).existsById(225012939);
     }
 
     @Test
@@ -254,7 +254,7 @@ public class MsLibraryServiceTests {
         );
 
         when(repository.findByIdAndUserId(1L, "usuario-123")).thenReturn(Optional.of(entry));
-        when(connector.getJuegoPorId(entry.getGameId())).thenReturn(rawgResponse);
+        when(connector.getGameById(entry.getGameId())).thenReturn(rawgResponse);
 
         GetResponse getResponse = service.getGame(1L, jwt);
 
@@ -448,7 +448,7 @@ public class MsLibraryServiceTests {
 
         when(repository.existsByUserIdAndGameId(jwt1.getSubject(), 22509)).thenReturn(false);
         when(repository.existsByUserIdAndGameId(jwt2.getSubject(), 22509)).thenReturn(false);
-        when(connector.existeJuegoPorId(22509)).thenReturn(true);
+        when(connector.existsById(22509)).thenReturn(true);
         when(repository.save(any(LibraryEntry.class))).thenReturn(entry1, entry2);
 
         service.addGame(dto, jwt1);
@@ -462,7 +462,7 @@ public class MsLibraryServiceTests {
 
         assertEquals("usuario-123", savedEntries.get(0).getUserId());
         assertEquals("usuario-456", savedEntries.get(1).getUserId());
-        verify(connector, times(2)).existeJuegoPorId(22509);
+        verify(connector, times(2)).existsById(22509);
         verify(repository).existsByUserIdAndGameId("usuario-123", 22509);
         verify(repository).existsByUserIdAndGameId("usuario-456", 22509);
     }

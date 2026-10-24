@@ -19,7 +19,7 @@ public class MsGamesConnector {
 
     RestClient restClient;
 
-    public boolean existeJuegoPorId(Integer id) {
+    public boolean existsById(Integer id) {
         try {
             restClient.get()
                     .uri("/{id}", id)
@@ -31,40 +31,61 @@ public class MsGamesConnector {
         } catch (ResourceAccessException e) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
-                    "No se pudo establecer comunicación con ms-games",
+                    "Unable to communicate with ms-games",
                     e
             );
         } catch (HttpServerErrorException e) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
-                    "ms-games respondió con un error",
+                    "ms-games returned a server error",
                     e
             );
-    }
+        } catch (HttpClientErrorException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "ms-games returned an unexpected HTTP client error",
+                    e
+            );
+        }
     }
 
-    public RAWGResponse getJuegoPorId(Integer id) {
+    public RAWGResponse getGameById(Integer id) {
         try {
-            return restClient.get()
+            RAWGResponse response = restClient.get()
                     .uri("/{id}", id)
                     .retrieve()
                     .body(RAWGResponse.class);
+
+            if (response == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_GATEWAY,
+                        "ms-games returned an empty response body"
+                );
+            }
+
+            return response;
         } catch (HttpClientErrorException.NotFound e) {
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
-                    "No se pudo encontrar el juego solicitado",
+                    "The requested game was not found",
                     e
             );
         } catch (ResourceAccessException e) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
-                    "No se pudo establecer comunicación con ms-games",
+                    "Unable to communicate with ms-games",
                     e
             );
         } catch (HttpServerErrorException e) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
-                    "ms-games respondió con un error",
+                    "ms-games returned a server error",
+                    e
+            );
+        } catch (HttpClientErrorException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "ms-games returned an unexpected HTTP client error",
                     e
             );
         }
