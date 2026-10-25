@@ -10,11 +10,11 @@
 - Retrieve details for a specific game.
 - Authenticate with Keycloak and call the library API with a JWT (`ms-library` acts as an OAuth2 Resource Server).
 - Each user has their **own** library: entries are linked to the token's `sub` claim and are never visible to other users.
-- Role-based access control: `USER` and `ADMIN` can manage their library, only `ADMIN` can delete entries.
+- Role-based access control: both `USER` and `ADMIN` can manage and delete entries in their own library.
 - Add games to the library after verifying that they exist (duplicates per user are rejected).
 - List saved games and retrieve an individual library entry, enriched with game information from `ms-games`.
 - Update a game's status and personal rating, or remove it.
-- Validate incoming requests and handle errors consistently (`ProblemDetail` in `ms-games`, `ResponseStatusException` in the other services).
+- Validate incoming requests and handle errors consistently (`ResponseStatusException` for RAWG-related failures in `ms-games` and HTTP errors in the library service).
 - Access the microservices through an API Gateway.
 
 ## Architecture
@@ -40,7 +40,7 @@
 | Module | Port | Responsibility |
 | --- | --- | --- |
 | `Gateway` | 8080 (default) | Routes `/api/games/**` and `/api/library/**` to the right microservice. |
-| `ms-games` | 8081 | Integrates with RAWG to search for games and retrieve their details. Handles RAWG errors (404 / 502). |
+| `ms-games` | 8081 | Integrates with RAWG to search for games and retrieve their details. Handles RAWG errors (404 / 502 / 503) and uses HTTP connection/read timeouts. |
 | `ms-library` | 8082 | Manages each user's library with Spring Data JPA, validates JWTs with Spring Security and calls `ms-games` when game information is needed. |
 | `ms-users` | 8083 | Standalone user CRUD (H2, BCrypt-hashed passwords). **Experimental:** it is not routed through the Gateway and is not yet integrated with Keycloak. |
 | `keycloak` + `keycloak-db` | 8180 | Identity provider and its PostgreSQL database, started with `docker-compose.yml`. |
@@ -51,7 +51,7 @@ When a client adds a game, `ms-library` reads the user ID from the JWT, checks t
 
 When a client retrieves library entries, `ms-library` combines the locally stored fields with game details requested from `ms-games`. The database does **not** duplicate game titles or images from RAWG.
 
-If `ms-games` is unreachable or fails, `ms-library` answers with `503 Service Unavailable` or `502 Bad Gateway` instead of a generic 500.
+When downstream requests fail, the services translate relevant connection and upstream HTTP failures into meaningful statuses such as `503 Service Unavailable` or `502 Bad Gateway`.
 
 ## Security
 
@@ -61,8 +61,7 @@ If `ms-games` is unreachable or fails, `ms-library` answers with `503 Service Un
 
 | Endpoint | Required role |
 | --- | --- |
-| `DELETE /api/library/{id}` | `ADMIN` |
-| any other `/api/library/**` | `USER` or `ADMIN` |
+| All `/api/library/**` endpoints, including `DELETE` | `USER` or `ADMIN` |
 
 > **Current limitations:** `ms-games` and the Gateway do not validate tokens yet (the Gateway just forwards the `Authorization` header to `ms-library`). The H2 console is open in `ms-library` for development only.
 
@@ -73,9 +72,9 @@ If `ms-games` is unreachable or fails, `ms-library` answers with `503 Service Un
 - **Keycloak** + **PostgreSQL** (Docker Compose)
 - **Spring Data JPA** / **Hibernate**
 - **Spring Cloud Gateway** (WebFlux)
-- **Spring RestClient** for HTTP communication (with timeouts in `ms-library`)
+- **Spring RestClient** for HTTP communication (with connection/read timeouts in `ms-games` and `ms-library`)
 - **H2 Database** (in-memory, for development)
-- **JUnit 5** and **Mockito** for service tests (`ms-library`, `ms-users`)
+- **JUnit 5**, **Mockito**, **MockMvc**, **MockRestServiceServer** and **Spring Data JPA tests** for service, controller/security, repository and HTTP connector tests
 - **Maven** (multi-module)
 - **Postman** for manual API testing
 
@@ -87,7 +86,7 @@ Calls go through the Gateway (`http://localhost:8080`). Library endpoints requir
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `GET` | `/api/games?nombre={name}` | Search for games by name. |
+| `GET` | `/api/games?name={name}` | Search for games by name. |
 | `GET` | `/api/games/{id}` | Retrieve a game by its RAWG ID. |
 
 ### Library service
@@ -98,7 +97,7 @@ Calls go through the Gateway (`http://localhost:8080`). Library endpoints requir
 | `GET` | `/api/library` | USER / ADMIN | Retrieve your entries, enriched with game details. |
 | `GET` | `/api/library/{id}` | USER / ADMIN | Retrieve one of your entries by its local ID. |
 | `PATCH` | `/api/library/{id}` | USER / ADMIN | Update an entry's status and/or personal rating. |
-| `DELETE` | `/api/library/{id}` | ADMIN | Remove an entry. |
+| `DELETE` | `/api/library/{id}` | USER / ADMIN | Remove one of your entries. |
 
 > **ID distinction:** `id` identifies a library entry in H2, while `gameId` identifies the game in RAWG.
 
@@ -166,6 +165,8 @@ cd Gateway    && mvn spring-boot:run
 
 ### 5. Test the API
 
+For example, search for games with `GET http://localhost:8080/api/games?name=Minecraft` (or call `ms-games` directly on port 8081).
+
 1. Request an access token from Keycloak (`/realms/Gamehub/protocol/openid-connect/token`).
 2. Call the endpoints through the Gateway with `Authorization: Bearer <token>`.
 
@@ -173,9 +174,19 @@ You can also call `ms-games` and `ms-library` directly on their ports for debugg
 
 ### Run the tests
 
+From the repository root, run all Maven module tests:
+
 ```bash
 mvn test
 ```
+
+To run only the games module tests:
+
+```bash
+mvn -pl ms-games test
+```
+
+The `ms-games` connector tests simulate RAWG responses locally; they do not call the live RAWG API.
 
 > **Note:** H2 runs in memory, so library entries are lost when `ms-library` stops.
 
@@ -184,7 +195,10 @@ mvn test
 - [x] Add unit tests with JUnit 5 and Mockito (services).
 - [x] Authenticate with Keycloak and isolate each user's library.
 - [x] Handle errors when `ms-games` or RAWG are unavailable.
-- [ ] Add integration tests (controllers + security).
+- [x] Add controller/security tests for `ms-library` and HTTP connector tests for `ms-games`.
+- [x] Add repository tests for `ms-library`.
+- [x] Configure HTTP timeouts for RAWG requests.
+- [ ] Expand integration coverage where it adds value.
 - [ ] Validate JWTs in the Gateway and `ms-games` as well.
 - [ ] Decide the role of `ms-users` (remove it or sync it with Keycloak users).
 - [ ] Optimize library enrichment to avoid one sequential HTTP request per saved game.
