@@ -20,16 +20,16 @@ public class GamesController {
     GamesService gamesService;
 
     @GetMapping
-    public ResponseEntity<List<GamesDTO>> listar(@RequestParam String nombre) {
-        val juegos = gamesService.listar(nombre);
+    public ResponseEntity<List<GamesDTO>> listGames(@RequestParam String name) {
+        val games = gamesService.listGames(name);
 
-        return ResponseEntity.ok(juegos);
+        return ResponseEntity.ok(games);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<GamesDTO> juegoPorId(@PathVariable Integer id) {
-        val juego = gamesService.juegoPorId(id);
+    public ResponseEntity<GamesDTO> getGameById(@PathVariable Integer id) {
+        val game = gamesService.getGameById(id);
 
-        return ResponseEntity.ok(juego);
+        return ResponseEntity.ok(game);
     }
 }
